@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Colordle: moving your progress</title>
+<style>
+  body { background:#121213; color:#ddd; font-family:'Helvetica Neue', Arial, sans-serif;
+         display:flex; align-items:center; justify-content:center; height:100vh; margin:0; text-align:center; }
+  a { color:#00d2ff; }
+</style>
+</head>
+<body>
+<p id="msg">Moving your saved games to the new Colordle address&hellip;<noscript><br>Please enable JavaScript, or <a href="https://colordle.org/">continue to colordle.org</a>.</noscript></p>
+<script>
+/*
+ * Colordle bridge. Lives at osmanyo.github.io/colordle-bridge/, which shares the
+ * origin (and therefore the localStorage) of the old game at osmanyo.github.io/colordle/.
+ * It reads the old saves, puts them in the URL fragment and sends the player to the
+ * new domain. Fragments are never sent to a server.
+ *
+ * Keep the key pattern and the encoding in sync with migration.js on the main site.
+ * The redirect target is hard-coded on purpose: this page must never redirect anywhere else.
+ */
+(function () {
+  var NEW_ORIGIN = 'https://colordle.org';
+  var SAVE_RE = /^colordle_save_[A-Za-z0-9._-]{1,60}_-?\d{1,10}$/;
+  var MAX_PAYLOAD = 200000;
+
+  function b64url(str) {
+    var bytes = new TextEncoder().encode(str), bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  var data = {}, count = 0;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k === 'colordle_list' || SAVE_RE.test(k)) { data[k] = localStorage.getItem(k); count++; }
+    }
+  } catch (e) { /* storage blocked: fall through with nothing */ }
+
+  var payload = count ? b64url(JSON.stringify({ v: 1, d: data })) : 'none';
+  if (payload.length > MAX_PAYLOAD) payload = 'toolarge';
+
+  // Only a plain query string such as ?seed=123&list=xkcd may be passed back.
+  var back = new URLSearchParams(location.search).get('r') || '';
+  if (!/^\?[A-Za-z0-9_=&.%-]{0,200}$/.test(back)) back = '';
+
+  location.replace(NEW_ORIGIN + '/' + back + '#migrate=' + payload);
+})();
+</script>
+</body>
+</html>
